@@ -17,6 +17,8 @@ public class CustomConstants {
     //########### UDF Constants
     public static final String FILTER_ALWAYS_FALSE_NAME = "filterAlwaysFalse";
     public static final String AROUND_G = "aroundGaussian";
+    public static final String AROUND_TRI = "aroundTriangular";
+    public static final String AROUND_TRAP = "aroundTrapezoidal";
 
     //######### Other string constants
     public static final String GAUSSIAN = "gaussian";

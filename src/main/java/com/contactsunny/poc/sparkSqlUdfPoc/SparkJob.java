@@ -68,8 +68,14 @@ class SparkJob {
             .withColumn(TEMPERATURE,col(TEMPERATURE).cast("Integer"))
             .withColumn(HUMIDITY,col(HUMIDITY).cast("Integer"));
 
+//        Dataset<Row> result = preprocessedDf
+//            .filter(callUDF(AROUND_G, col(HUMIDITY), lit(60.0), lit(5.0)).$greater$eq(0.6));
+
+//        Dataset<Row> result = preprocessedDf
+//            .filter(callUDF(AROUND_TRI, col(HUMIDITY), lit(45), lit(47), lit(60)).$greater$eq(0.75));
+
         Dataset<Row> result = preprocessedDf
-            .filter(callUDF(AROUND_G, col(HUMIDITY), lit(60.0), lit(5.0)).$greater$eq(0.6));
+            .filter(callUDF(AROUND_TRAP, col(HUMIDITY), lit(45), lit(47), lit(49), lit(60)).$greater$eq(0.75));
 
         result.show();
 
@@ -116,6 +122,8 @@ class SparkJob {
         this.udfUtil.registerColumnUppercaseUdf();
         this.udfUtil.registerFilterAlwaysFalseUdf();
         this.udfUtil.registerAroundG();
+        this.udfUtil.registerAroundTri();
+        this.udfUtil.registerAroundTrap();
     }
 
     private void initialize(Properties properties) {
