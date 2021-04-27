@@ -7,14 +7,19 @@ import static com.contactsunny.poc.sparkSqlUdfPoc.config.CustomConstants.ASSIGN_
 import static com.contactsunny.poc.sparkSqlUdfPoc.config.CustomConstants.COLUMN_DOUBLE_UDF_NAME;
 import static com.contactsunny.poc.sparkSqlUdfPoc.config.CustomConstants.COLUMN_UPPERCASE_UDF_NAME;
 import static com.contactsunny.poc.sparkSqlUdfPoc.config.CustomConstants.FILTER_ALWAYS_FALSE_NAME;
+import static com.contactsunny.poc.sparkSqlUdfPoc.config.CustomConstants.FUZZ_AND;
+import static com.contactsunny.poc.sparkSqlUdfPoc.config.CustomConstants.FUZZ_OR;
 import static com.contactsunny.poc.sparkSqlUdfPoc.config.CustomConstants.MEMBER_DEGREE;
 
 
 import com.contactsunny.poc.sparkSqlUdfPoc.domain.TempLingValue;
 import com.contactsunny.poc.sparkSqlUdfPoc.enums.Level;
+import com.contactsunny.poc.sparkSqlUdfPoc.interfaces.Around;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
+import java.util.stream.Stream;
+import org.apache.spark.sql.Column;
 import org.apache.spark.sql.SQLContext;
 import org.apache.spark.sql.api.java.UDF0;
 import org.apache.spark.sql.api.java.UDF1;
@@ -23,6 +28,7 @@ import org.apache.spark.sql.api.java.UDF3;
 import org.apache.spark.sql.api.java.UDF4;
 import org.apache.spark.sql.api.java.UDF5;
 import org.apache.spark.sql.types.DataTypes;
+import scala.collection.Seq;
 
 public class UDFUtil {
   private static final List<TempLingValue> TEMP_LING_VALUES = Arrays.asList(
@@ -38,7 +44,7 @@ public class UDFUtil {
     this.sqlContext = _sqlContext;
   }
 
-  private static Double aroundTrap(Integer columnVal, Integer lower, Integer lowerMid, Integer upperMid,
+  public static Double aroundTrap(Integer columnVal, Integer lower, Integer lowerMid, Integer upperMid,
                                    Integer upper) {
     if ((columnVal < lower) || (columnVal > upper)) {
       return 0.0;
@@ -52,7 +58,7 @@ public class UDFUtil {
     return 1.0 - (((double)columnVal - upperMid) / (upper - upperMid));
   }
 
-  private static Double aroundTri(Integer columnVal, Integer lower, Integer mid, Integer upper) {
+  public static Double aroundTri(Integer columnVal, Integer lower, Integer mid, Integer upper) {
     if ((columnVal < lower) || (columnVal > upper)) {
       return 0.0;
     }
@@ -65,11 +71,11 @@ public class UDFUtil {
     return 1.0 - (((double) columnVal - mid) / (upper - mid));
   }
 
-  private static Double aroundG(Integer columnVal, Double mean, Double stdDev) {
+  public static Double aroundG(Integer columnVal, Double mean, Double stdDev) {
     return Math.exp(-(columnVal - mean) * (columnVal - mean) / (2.0 * stdDev * stdDev));
   }
 
-  private static String assignLevel(Integer columnVal) {
+  public static String assignLevel(Integer columnVal) {
     final Level assignedLvl = TEMP_LING_VALUES.stream()
         .max(Comparator.comparing(l ->
             aroundTrap(columnVal, l.getLower(), l.getLowerMid(), l.getUpperMid(), l.getUpper())))
@@ -89,6 +95,16 @@ public class UDFUtil {
             .get();
 
     return aroundTrap(tempVal, val.getLower(), val.getLowerMid(), val.getUpperMid(), val.getUpper());
+  }
+
+  private static Double fuzzOr(Double val1, Double val2) {
+    double max = Math.max(val1, val2);
+    return max;
+  }
+
+  private static Double fuzzAnd(Double val1, Double val2) {
+    double min = Math.min(val1, val2);
+    return min;
   }
 
   public void registerColumnDoubleUdf() {
@@ -168,5 +184,21 @@ public class UDFUtil {
         .udf()
         .register(MEMBER_DEGREE, (UDF2<Integer, String, Double>)
             UDFUtil::membershipDegree, DataTypes.DoubleType);
+  }
+
+  public void registerFuzzOr() {
+    this.sqlContext
+        .udf()
+        .register(FUZZ_OR,
+            (UDF2<Double, Double, Double>)
+                UDFUtil::fuzzOr, DataTypes.DoubleType);
+  }
+
+  public void registerFuzzAnd() {
+    this.sqlContext
+        .udf()
+        .register(FUZZ_AND,
+            (UDF2<Double, Double, Double>)
+                UDFUtil::fuzzAnd, DataTypes.DoubleType);
   }
 }

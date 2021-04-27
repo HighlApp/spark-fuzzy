@@ -22,6 +22,8 @@ public class CustomConstants {
     public static final String AROUND_TRAP = "aroundTrapezoidal";
     public static final String ASSIGN_LEVEL = "assignLevel";
     public static final String MEMBER_DEGREE = "membershipDegree";
+    public static final String FUZZ_OR = "fuzzyOr";
+    public static final String FUZZ_AND = "fuzzyAnd";
 
     //######### Other string constants
     public static final String GAUSSIAN = "gaussian";
