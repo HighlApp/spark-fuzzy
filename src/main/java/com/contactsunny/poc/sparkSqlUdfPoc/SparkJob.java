@@ -74,8 +74,13 @@ class SparkJob {
 //        Dataset<Row> result = preprocessedDf
 //            .filter(callUDF(AROUND_TRI, col(HUMIDITY), lit(45), lit(47), lit(60)).$greater$eq(0.75));
 
+//        Dataset<Row> result = preprocessedDf
+//            .filter(callUDF(AROUND_TRAP, col(HUMIDITY), lit(45), lit(47), lit(49), lit(60)).$greater$eq(0.75));
+
         Dataset<Row> result = preprocessedDf
-            .filter(callUDF(AROUND_TRAP, col(HUMIDITY), lit(45), lit(47), lit(49), lit(60)).$greater$eq(0.75));
+            .withColumn(TEMPERATURE_LEVEL, callUDF(ASSIGN_LEVEL, col(TEMPERATURE)))
+            .withColumn(TEMPERATURE_LEVEL_DEGREE, callUDF(MEMBER_DEGREE, col(TEMPERATURE), col(TEMPERATURE_LEVEL)));
+
 
         result.show();
 
@@ -124,6 +129,8 @@ class SparkJob {
         this.udfUtil.registerAroundG();
         this.udfUtil.registerAroundTri();
         this.udfUtil.registerAroundTrap();
+        this.udfUtil.registerAssignLevel();
+        this.udfUtil.registerMemberDegree();
     }
 
     private void initialize(Properties properties) {
