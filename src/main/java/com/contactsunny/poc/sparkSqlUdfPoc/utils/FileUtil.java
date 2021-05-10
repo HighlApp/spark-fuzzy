@@ -1,8 +1,7 @@
 package com.contactsunny.poc.sparkSqlUdfPoc.utils;
 
-import com.contactsunny.poc.sparkSqlUdfPoc.domain.FileInputLine;
 import org.apache.spark.sql.Dataset;
-import org.apache.spark.sql.Encoders;
+import org.apache.spark.sql.Row;
 import org.apache.spark.sql.SparkSession;
 
 public class FileUtil {
@@ -13,11 +12,8 @@ public class FileUtil {
         this.sparkSession = _sparkSession;
     }
 
-    public Dataset<FileInputLine> getDatasetFromFile(String filePath) {
-
-        Dataset<FileInputLine> fileDataSet = this.sparkSession.read().option("header", "true").csv(filePath)
-                .as(Encoders.bean(FileInputLine.class));
-
+    public Dataset<Row> getDatasetFromFile(String filePath) {
+        Dataset<Row> fileDataSet = this.sparkSession.read().option("header", "true").csv(filePath);
         return fileDataSet;
     }
 }

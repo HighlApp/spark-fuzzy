@@ -4,22 +4,18 @@ import static com.contactsunny.poc.sparkSqlUdfPoc.config.CustomConstants.AROUND_
 import static com.contactsunny.poc.sparkSqlUdfPoc.config.CustomConstants.AROUND_TRAP;
 import static com.contactsunny.poc.sparkSqlUdfPoc.config.CustomConstants.AROUND_TRI;
 import static com.contactsunny.poc.sparkSqlUdfPoc.config.CustomConstants.ASSIGN_LEVEL;
-import static com.contactsunny.poc.sparkSqlUdfPoc.config.CustomConstants.COLUMN_DOUBLE_UDF_NAME;
-import static com.contactsunny.poc.sparkSqlUdfPoc.config.CustomConstants.COLUMN_UPPERCASE_UDF_NAME;
 import static com.contactsunny.poc.sparkSqlUdfPoc.config.CustomConstants.FILTER_ALWAYS_FALSE_NAME;
 import static com.contactsunny.poc.sparkSqlUdfPoc.config.CustomConstants.FUZZ_AND;
 import static com.contactsunny.poc.sparkSqlUdfPoc.config.CustomConstants.FUZZ_OR;
+import static com.contactsunny.poc.sparkSqlUdfPoc.config.CustomConstants.FUZZ_VALUE_JOIN;
 import static com.contactsunny.poc.sparkSqlUdfPoc.config.CustomConstants.MEMBER_DEGREE;
 
 
 import com.contactsunny.poc.sparkSqlUdfPoc.domain.TempLingValue;
 import com.contactsunny.poc.sparkSqlUdfPoc.enums.Level;
-import com.contactsunny.poc.sparkSqlUdfPoc.interfaces.Around;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
-import java.util.stream.Stream;
-import org.apache.spark.sql.Column;
 import org.apache.spark.sql.SQLContext;
 import org.apache.spark.sql.api.java.UDF0;
 import org.apache.spark.sql.api.java.UDF1;
@@ -28,7 +24,6 @@ import org.apache.spark.sql.api.java.UDF3;
 import org.apache.spark.sql.api.java.UDF4;
 import org.apache.spark.sql.api.java.UDF5;
 import org.apache.spark.sql.types.DataTypes;
-import scala.collection.Seq;
 
 public class UDFUtil {
   private static final List<TempLingValue> TEMP_LING_VALUES = Arrays.asList(
@@ -107,49 +102,53 @@ public class UDFUtil {
     return min;
   }
 
-  public void registerColumnDoubleUdf() {
+  private static Double fuzzValueJoin(Integer val1, Integer val2, Integer margin) {
+    double m1, m2, b1, b2;
+    if (val1.equals(val2)) {
+      return 1.0;
+    } else if (val1 < val2) {
+      m1 = slope(val1, 1, val1 + margin, 0);
+      m2 = slope(val2, 1, val2 - margin, 0);
+    } else {
+      m1 = slope(val1, 1, val1 - margin, 0);
+      m2 = slope(val2, 1, val2 + margin, 0);
+    }
+    //y = m(x - a) + b --> y = mx + (b-ma) gdzie a to x, b to y
+    b1 = (1 - m1 * val1);
+    b2 = (1 - m2 * val2);
 
-    this.sqlContext.udf().register(COLUMN_DOUBLE_UDF_NAME, (UDF1<String, Integer>)
-        (columnValue) -> {
-
-          return Integer.parseInt(columnValue) * 2;
-
-        }, DataTypes.IntegerType);
+    final double degree = calculateIntersectionPointDegree(m1, b1, m2, b2);
+    return degree;
   }
 
-  public void registerColumnUppercaseUdf() {
+  private static double slope(int x1, int y1, int x2, int y2)
+  {
+    return ((double)y2 - y1) / (x2 - x1);
+  }
 
-    this.sqlContext.udf().register(COLUMN_UPPERCASE_UDF_NAME, (UDF1<String, String>)
-        (columnValue) -> {
+  private static double calculateIntersectionPointDegree(
+      double m1,
+      double b1,
+      double m2,
+      double b2) {
 
-          return columnValue.toUpperCase();
+    if (m1 == m2) {
+      return 0.0;
+    }
 
-        }, DataTypes.StringType);
+    double x = (b2 - b1) / (m1 - m2);
+    double y = m1 * x + b1;
+
+    if (y <= 0 || y >=1 ) {
+      return 0.0;
+    }
+    return y;
   }
 
   public void registerFilterAlwaysFalseUdf() {
     this.sqlContext.udf().register(FILTER_ALWAYS_FALSE_NAME, (UDF0<Boolean>)
         () -> false, DataTypes.BooleanType);
   }
-  //
-  //    public void registerAroundG() {
-  //        this.sqlContext
-  //            .udf()
-  //            .register(AROUND_G, (UDF3<Integer,Double,Double,Double>)
-  //                (columnVal, mean, stdDev) ->
-  //                    Math.exp(-(columnVal - mean) * (columnVal - mean) / (2 * stdDev * stdDev)),
-  //            DataTypes.DoubleType);
-  //    }
-
-
-  //    public void registerAroundG() {
-  //        this.sqlContext
-  //            .udf()
-  //            .register(AROUND_G, (UDF3<Integer,Double,Double,Double>)
-  //                    (columnVal, mean, stdDev) ->
-  //                        Math.exp(-(columnVal - mean) * (columnVal - mean) / (2.0 * stdDev * stdDev)),
-  //                DataTypes.DoubleType);
-  //    }
 
   public void registerAroundG() {
     this.sqlContext
@@ -200,5 +199,13 @@ public class UDFUtil {
         .register(FUZZ_AND,
             (UDF2<Double, Double, Double>)
                 UDFUtil::fuzzAnd, DataTypes.DoubleType);
+  }
+
+  public void registerFuzzValueJoin() {
+    this.sqlContext
+        .udf()
+        .register(FUZZ_VALUE_JOIN,
+            (UDF3<Integer, Integer, Integer, Double>)
+                UDFUtil::fuzzValueJoin, DataTypes.DoubleType);
   }
 }
