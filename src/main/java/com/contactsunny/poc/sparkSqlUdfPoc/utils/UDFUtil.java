@@ -11,8 +11,7 @@ import static com.contactsunny.poc.sparkSqlUdfPoc.config.CustomConstants.FUZZ_VA
 import static com.contactsunny.poc.sparkSqlUdfPoc.config.CustomConstants.MEMBER_DEGREE;
 
 
-import com.contactsunny.poc.sparkSqlUdfPoc.domain.TempLingValue;
-import com.contactsunny.poc.sparkSqlUdfPoc.enums.Level;
+import com.contactsunny.poc.sparkSqlUdfPoc.domain.TempLingValueNew;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
@@ -26,17 +25,13 @@ import org.apache.spark.sql.api.java.UDF5;
 import org.apache.spark.sql.types.DataTypes;
 
 public class UDFUtil {
-  private static final List<TempLingValue> TEMP_LING_VALUES = Arrays.asList(
-      new TempLingValue(Level.LOW, 0, 0, 8, 16),
-      new TempLingValue(Level.WARM, 12, 17, 19, 24),
-      new TempLingValue(Level.HOT, 21, 27, 28, 35),
-      new TempLingValue(Level.VERY_HOT, 32, 34, 42, 45)
-  );
   private SQLContext sqlContext;
+  private static List<TempLingValueNew> TEMP_LING_VALUES;
 
 
-  public UDFUtil(SQLContext _sqlContext) {
+  public UDFUtil(SQLContext _sqlContext, List<TempLingValueNew> tempLingValues) {
     this.sqlContext = _sqlContext;
+    TEMP_LING_VALUES = tempLingValues;
   }
 
   public static Double aroundTrap(Integer columnVal, Integer lower, Integer lowerMid, Integer upperMid,
@@ -71,25 +66,23 @@ public class UDFUtil {
   }
 
   public static String assignLevel(Integer columnVal) {
-    final Level assignedLvl = TEMP_LING_VALUES.stream()
+    final String assignedLvl = TEMP_LING_VALUES.stream()
         .max(Comparator.comparing(l ->
             aroundTrap(columnVal, l.getLower(), l.getLowerMid(), l.getUpperMid(), l.getUpper())))
         .get().getLevel();
 
-    return assignedLvl.toString();
+    return assignedLvl;
   }
 
 
   private static double membershipDegree(Integer tempVal, String levelString) {
-    Level level = Arrays.stream(Level.values()).filter(enm -> enm.name().equals(levelString)).findFirst().get();
+    TempLingValueNew lingVal = TEMP_LING_VALUES
+        .stream()
+        .filter(tempLingVal -> tempLingVal.getLevel().equals(levelString))
+        .findFirst()
+        .get();
 
-    TempLingValue val =
-        TEMP_LING_VALUES.stream()
-            .filter(l -> l.getLevel().equals(level))
-            .findFirst()
-            .get();
-
-    return aroundTrap(tempVal, val.getLower(), val.getLowerMid(), val.getUpperMid(), val.getUpper());
+    return aroundTrap(tempVal, lingVal.getLower(), lingVal.getLowerMid(), lingVal.getUpperMid(), lingVal.getUpper());
   }
 
   private static Double fuzzOr(Double val1, Double val2) {

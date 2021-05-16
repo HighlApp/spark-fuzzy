@@ -1,0 +1,26 @@
+[
+  { "level": "LOW",
+    "lower": 0,
+    "lowerMid": 0,
+    "upperMid": 8,
+    "upper": 16
+  },
+  { "level": "WARM",
+    "lower": 12,
+    "lowerMid": 17,
+    "upperMid": 19,
+    "upper": 24
+  },
+  { "level": "HOT",
+    "lower": 21,
+    "lowerMid": 27,
+    "upperMid": 28,
+    "upper": 35
+  },
+  { "level": "VERY_HOT",
+    "lower": 32,
+    "lowerMid": 34,
+    "upperMid": 42,
+    "upper": 45
+  }
+]

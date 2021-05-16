@@ -1,5 +1,6 @@
 package com.contactsunny.poc.sparkSqlUdfPoc;
 
+import static com.contactsunny.poc.sparkSqlUdfPoc.config.CustomConstants.AROUND_G;
 import static com.contactsunny.poc.sparkSqlUdfPoc.config.CustomConstants.AROUND_TRAP;
 import static com.contactsunny.poc.sparkSqlUdfPoc.config.CustomConstants.AROUND_TRI;
 import static com.contactsunny.poc.sparkSqlUdfPoc.config.CustomConstants.ASSIGN_LEVEL;
@@ -17,12 +18,13 @@ import static org.apache.spark.sql.functions.col;
 import static org.apache.spark.sql.functions.lit;
 
 
-import com.contactsunny.poc.sparkSqlUdfPoc.enums.Level;
+import com.contactsunny.poc.sparkSqlUdfPoc.domain.TempLingValueNew;
 import com.contactsunny.poc.sparkSqlUdfPoc.exceptions.ValidationException;
 import com.contactsunny.poc.sparkSqlUdfPoc.utils.FileUtil;
 import com.contactsunny.poc.sparkSqlUdfPoc.utils.UDFUtil;
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.List;
 import java.util.Properties;
 import org.apache.log4j.Logger;
 import org.apache.spark.SparkConf;
@@ -36,7 +38,7 @@ class SparkJob {
 
   private final Logger logger = Logger.getLogger(SparkJob.class);
   private String[] args;
-  private String sparkMaster, inputFilePath1, inputFilePath2;
+  private String sparkMaster, inputFilePath1, inputFilePath2, definitionsFile1;
 
   private JavaSparkContext javaSparkContext;
   private SQLContext sqlContext;
@@ -65,7 +67,7 @@ class SparkJob {
     Dataset<Row> fileTempHumid = fileUtil.getDatasetFromFile(inputFilePath1);
     Dataset<Row> fileTempPpm = fileUtil.getDatasetFromFile(inputFilePath2);
 
-    System.out.println("dataset TempHumid");
+    customPrint("dataset TempHumid");
     fileTempHumid.show();
 
     Dataset<Row> dfTempHumid = fileTempHumid
@@ -78,49 +80,45 @@ class SparkJob {
         .withColumn(TEMPERATURE, col(TEMPERATURE).cast("Integer"))
         .withColumn(PPM, col(PPM).cast("Integer"));
 
-    //        Dataset<Row> result = dfTempHumid
-    //            .filter(callUDF(AROUND_G, col(HUMIDITY), lit(60.0), lit(5.0)).$greater$eq(0.6));
+    customPrint("TempHumid filtered with AroundG function");
+    Dataset<Row> resultAroundG = dfTempHumid
+        .filter(callUDF(AROUND_G, col(HUMIDITY), lit(60.0), lit(5.0)).$greater$eq(0.6));
+    resultAroundG.show();
 
-//    Dataset<Row> resultTri =
-//        dfTempHumid.filter(callUDF(AROUND_TRI, col(HUMIDITY), lit(45), lit(47), lit(60)).$greater$eq(0.75));
-//    resultTri.show();
+    customPrint("TempHumid filtered with AroundTri function");
+    Dataset<Row> resultAroundTri =
+        dfTempHumid.filter(callUDF(AROUND_TRI, col(HUMIDITY), lit(45), lit(47), lit(60)).$greater$eq(0.75));
+    resultAroundTri.show();
 
-    //        Dataset<Row> result = dfTempHumid
-    //            .filter(callUDF(AROUND_TRI, col(HUMIDITY), lit(45), lit(47), lit(60)).$greater$eq(0.75));
+    customPrint("TempHumid filtered with AroundTrap function");
+    Dataset<Row> resultAroundTrap = dfTempHumid
+        .filter(callUDF(AROUND_TRAP, col(HUMIDITY), lit(45), lit(47), lit(49), lit(60)).$greater$eq(0.75));
+    resultAroundTrap.show();
 
-    //        Dataset<Row> result = dfTempHumid
-    //            .filter(callUDF(AROUND_TRAP, col(HUMIDITY), lit(45), lit(47), lit(49), lit(60)).$greater$eq(0.75));
-
+    customPrint("TempHumid supplemented with Temperature Level and it's membership degree");
     Dataset<Row> result = dfTempHumid
         .withColumn(TEMPERATURE_LEVEL, callUDF(ASSIGN_LEVEL, col(TEMPERATURE)))
         .withColumn(TEMPERATURE_LEVEL_DEGREE, callUDF(MEMBER_DEGREE, col(TEMPERATURE), col(TEMPERATURE_LEVEL)));
-
     result.show();
 
-
-    result = result
+    customPrint("Supplemented TempHumid filtered with ling value - HOT");
+    Dataset<Row> resultFilterByLingValue = result
         .filter(callUDF(MEMBER_DEGREE, col(TEMPERATURE),
-            lit(Level.HOT.name())).$greater$eq(0.7));
+            lit("HOT")).$greater$eq(0.7));
 
-    result.show();
+    resultFilterByLingValue.show();
 
-
-    //        result = result
-    //            .filter(callUDF(FUZZ_OR,
-    //                JavaConversions.asScalaBuffer(Arrays.asList(
-    //                    callUDF(AROUND_TRAP, col(HUMIDITY), lit(45), lit(47), lit(49), lit(60)),
-    //                    callUDF(AROUND_TRAP, col(TEMPERATURE), lit(13), lit(15), lit(17), lit(19)))).seq()
-    //            ));
-    Dataset<Row> resultOrSingle = result
+    customPrint("Fuzzy OR - Humidity or Temperature conditions");
+    Dataset<Row> resultFuzzyOr = result
         .filter(callUDF(FUZZ_OR,
             callUDF(AROUND_TRAP, col(HUMIDITY), lit(45), lit(47), lit(49), lit(60)),
             callUDF(AROUND_TRAP, col(TEMPERATURE), lit(13), lit(15), lit(17), lit(19)))
             .$greater$eq(0.7)
         );
+    resultFuzzyOr.show();
 
-    resultOrSingle.show();
-
-    Dataset<Row> resultOrDouble = result
+    customPrint("Fuzzy tripple (nested) OR");
+    Dataset<Row> resultTrippleOr = result
         .filter(callUDF(FUZZ_OR,
             callUDF(AROUND_TRAP, col(TEMPERATURE), lit(23), lit(25), lit(29), lit(34)),
             callUDF(FUZZ_OR,
@@ -128,35 +126,35 @@ class SparkJob {
                 callUDF(AROUND_TRAP, col(TEMPERATURE), lit(13), lit(15), lit(17), lit(19)))
             ).$greater$eq(0.7)
         );
-    resultOrDouble.show();
+    resultTrippleOr.show();
 
-
-    Dataset<Row> resultAndSingle = result
+    customPrint("Fuzzy AND");
+    Dataset<Row> resultAnd = result
         .filter(callUDF(FUZZ_AND,
-            callUDF(AROUND_TRAP, col(HUMIDITY), lit(45), lit(47), lit(49), lit(60)),
+            callUDF(AROUND_TRAP, col(TEMPERATURE), lit(23), lit(25), lit(29), lit(34)),
             callUDF(AROUND_TRAP, col(HUMIDITY), lit(45), lit(47), lit(49), lit(60)))
             .$greater$eq(0.7)
         );
+    resultAnd.show();
 
-    System.out.println("fuzzy and");
-    resultAndSingle.show();
-
-    Dataset<Row> resultAndDouble = result
+    customPrint("Fuzzy tripple (nested) AND");
+    Dataset<Row> resultTrippleAnd = result
         .filter(callUDF(FUZZ_AND,
             callUDF(AROUND_TRAP, col(TEMPERATURE), lit(23), lit(25), lit(29), lit(34)),
             callUDF(FUZZ_AND,
                 callUDF(AROUND_TRAP, col(HUMIDITY), lit(45), lit(47), lit(49), lit(60)),
                 callUDF(AROUND_TRAP, col(HUMIDITY), lit(45), lit(47), lit(49), lit(60)))
-            )
-                .$greater$eq(0.7)
+            ).$greater$eq(0.7)
         );
-    resultAndDouble.show();
+    resultTrippleAnd.show();
 
+    customPrint("Fuzzy grouping (with count)");
     result = dfTempHumid.groupBy(callUDF(ASSIGN_LEVEL, col(TEMPERATURE))).count();
     result.show();
 
-
+    customPrint("TempPpm dataset");
     dfTempPpm.show();
+
     String thAlias = "th";
     String tpAlias = "tp";
     dfTempHumid = dfTempHumid.alias(thAlias);
@@ -168,15 +166,14 @@ class SparkJob {
     dfTempHumid = dfTempHumid.withColumn(TEMPERATURE_LEVEL, callUDF(ASSIGN_LEVEL, col(TEMPERATURE)));
     dfTempPpm = dfTempPpm.withColumn(TEMPERATURE_LEVEL, callUDF(ASSIGN_LEVEL, col(TEMPERATURE)));
 
-
-    //first type of join - joining by ling values
+    customPrint("Fuzzy join - first type of join - joining by ling values");
     result = dfTempHumid.join(dfTempPpm,
         callUDF(ASSIGN_LEVEL,
             col(thAlias + TEMPERATURE)).equalTo(callUDF(ASSIGN_LEVEL, col(tpAlias + TEMPERATURE))));
     result.show();
 
 
-    //second type of join - fuzzy values (triangle intersection)
+    customPrint("Fuzzy join - second type of join - fuzzy values (triangle intersection)");
     result = dfTempHumid.join(dfTempPpm,
         callUDF(FUZZ_VALUE_JOIN,
             col(thAlias + TEMPERATURE),
@@ -184,8 +181,6 @@ class SparkJob {
             lit(4)
         ).$greater$eq(0.7));
     result.show(100);
-
-
   }
 
 
@@ -224,10 +219,12 @@ class SparkJob {
     javaSparkContext = createJavaSparkContext();
     sqlContext = new SQLContext(javaSparkContext);
     sparkSession = sqlContext.sparkSession();
+    fileUtil = new FileUtil(sparkSession);
     inputFilePath1 = this.args[0];
     inputFilePath2 = this.args[1];
-    udfUtil = new UDFUtil(sqlContext);
-    fileUtil = new FileUtil(sparkSession);
+    definitionsFile1 = this.args[2];
+    List<TempLingValueNew> tempLingValues = fileUtil.readJsonDefinitions(definitionsFile1);
+    udfUtil = new UDFUtil(sqlContext, tempLingValues);
   }
 
   private void validateArguments() throws ValidationException {
@@ -239,6 +236,11 @@ class SparkJob {
 
       throw new ValidationException("Invalid arguments, check help text for instructions.");
     }
+  }
+
+  private void customPrint(String str) {
+    System.out.println("\n=========================");
+    System.out.println(str);
   }
 
   private JavaSparkContext createJavaSparkContext() {

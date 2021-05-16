@@ -1,15 +1,13 @@
 package com.contactsunny.poc.sparkSqlUdfPoc.domain;
 
-import com.contactsunny.poc.sparkSqlUdfPoc.enums.Level;
-
-public class TempLingValue {
-  private Level level;
+public class TempLingValueNew {
+  private String level;
   private int lower;
   private int lowerMid;
   private int upperMid;
   private int upper;
 
-  public TempLingValue(Level level, int lower, int lowerMid, int upperMid, int upper) {
+  public TempLingValueNew(String level, int lower, int lowerMid, int upperMid, int upper) {
     this.level = level;
     this.lower = lower;
     this.lowerMid = lowerMid;
@@ -17,7 +15,10 @@ public class TempLingValue {
     this.upper = upper;
   }
 
-  public Level getLevel() {
+  public TempLingValueNew() {
+  }
+
+  public String getLevel() {
     return level;
   }
 
