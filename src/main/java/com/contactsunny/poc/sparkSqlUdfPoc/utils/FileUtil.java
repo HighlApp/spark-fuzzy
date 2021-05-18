@@ -6,6 +6,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.List;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
@@ -28,7 +29,8 @@ public class FileUtil {
         ObjectMapper objectMapper = new ObjectMapper();
         String json;
         try {
-            json = Files.readString(Path.of(filePath));
+            json = new String(Files.readAllBytes(Paths.get(filePath)));
+
             List<TempLingValueNew> tempValues = objectMapper.readValue(json, new TypeReference<List<TempLingValueNew>>(){});
             return tempValues;
         } catch (IOException e) {
